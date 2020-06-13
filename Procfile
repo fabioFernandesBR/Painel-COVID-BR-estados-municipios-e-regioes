@@ -1,0 +1,1 @@
+web: gunicorn painelcovid19brmunicipios:server
