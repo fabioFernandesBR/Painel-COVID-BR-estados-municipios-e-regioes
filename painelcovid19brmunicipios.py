@@ -26,15 +26,16 @@ with open('Maps/brasil_1.json', encoding='utf-8') as geofile1:
     jdataBra_states = json.load(geofile1)
 
 '''
-with open('Deployment\brasil_2.json', encoding='utf-8') as geofile2:
+with open('Maps/brasil_2.json', encoding='utf-8') as geofile2:
     jdataBra_rgintermed = json.load(geofile2)
 
-with open('Deployment\brasil_3.json', encoding='utf-8') as geofile3:
+with open('Maps/brasil_3.json', encoding='utf-8') as geofile3:
     jdataBra_rgimed = json.load(geofile3)
-    
-with open('Deployment\brasil_4.json', encoding='utf-8') as geofile4:
+
+'''    
+with open('Maps/brasil_4.json', encoding='utf-8') as geofile4:
     jdataBra_municipios = json.load(geofile4)
-'''
+
 
 
 ## Reading info from Brasil.IO
@@ -78,12 +79,15 @@ app.layout = html.Div([
                                    'layout': go.Layout(
                                            title = 'Mapa de óbitos por estados brasileiro',
                                            hovermode = 'closest',
+                                           width = 1000,
+                                           height = 900,
                                            mapbox={'zoom': 3,
                                                    'style': 'carto-positron',
                                                    'center': {"lat": -15, "lon": -60}})
                                    } #closing figure
-    )) #closing html.Div
-    ]) #closing main html.Div
+    ), #closing dcc.Graph
+    style={'width':1000, 'height':800, 'border':'2px black'}) #closing html.Div
+]) #closing main html.Div
 
     
     
