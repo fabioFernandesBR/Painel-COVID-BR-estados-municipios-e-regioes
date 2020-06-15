@@ -12,7 +12,6 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
-import requests
 import pandas as pd
 import json
 from urllib.request import Request, urlopen
@@ -102,7 +101,7 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 server = app.server #Disable it when in test / development mode. Enable it to Production mode
 app.layout = html.Div([
-        dcc.Store(id="store_data"), #later understand why this is useful
+        #dcc.Store(id="store_data"), #later understand why this is useful
         
         html.Div(html.H1('Painel COVID-19 nas localidades brasileiras')),
         
@@ -236,5 +235,5 @@ def update_figure(info, geo_level):
     
     
 if __name__ == '__main__':
-    app.run_server()
+    app.run_server(debug=True)
 
