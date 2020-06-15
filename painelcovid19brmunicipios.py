@@ -157,12 +157,23 @@ app.layout = html.Div([
                                        #{'label': 'Total de óbitos por habitantes', 'value': 'deaths_per_pop'}
                                        ], 
                                value = 'confirmed', 
-                               multi = False)]),
+                               multi = False)]), ### closing Div-Div-Dropdown
         
         
         html.Div(dcc.Graph(id = 'main_map'), #closing dcc.Graph
     #style={'width':1000, 'height':800, 'border':'2px black'}
-    ) #closing html.Div
+    ), ### closing Div-Graph
+    
+        html.Div(dcc.Markdown('''
+                              Os dados reportados neste painel foram obtidos na plataforma Brasil.IO, repositório de dados públicos disponibilizados em formato acessível. Conheça e apoie esta iniciativa.
+                              
+                              https://brasil.io/home/
+                              
+                              
+                              
+                              Os mapas foram obtidos no site do IBGE em formato shapefile e simplificados usando a biblioteca Geopandas.
+                              ''') #closing Markdown
+        ) ### closing Div-Markdown
 ]) #closing main html.Div
         
         
