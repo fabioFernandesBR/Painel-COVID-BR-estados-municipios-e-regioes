@@ -16,7 +16,14 @@ import requests
 import pandas as pd
 import json
 from urllib.request import Request, urlopen
+import dash_daq as daq
 
+
+'''
+Source of Population Info: https://www.ibge.gov.br/estatisticas/sociais/populacao/9103-estimativas-de-populacao.html?edicao=25272&t=downloads
+Source of Maps: https://www.ibge.gov.br/geociencias/organizacao-do-territorio/15774-malhas.html?=&t=downloads
+Source of COVID data: https://brasil.io/dataset/covid19/caso?format=csv
+'''
 
 
 #Reading data section
@@ -25,17 +32,21 @@ from urllib.request import Request, urlopen
 with open('Maps/brasil_1.json', encoding='utf-8') as geofile1:
     jdataBra_states = json.load(geofile1)
 
-'''
+
 with open('Maps/brasil_2.json', encoding='utf-8') as geofile2:
     jdataBra_rgintermed = json.load(geofile2)
 
 with open('Maps/brasil_3.json', encoding='utf-8') as geofile3:
     jdataBra_rgimed = json.load(geofile3)
 
-'''    
+   
 with open('Maps/brasil_4.json', encoding='utf-8') as geofile4:
     jdataBra_municipios = json.load(geofile4)
 
+
+## Reading info about geographical locations
+path_info_rg = 'Tables/regioes_geograficas_composicao_por_municipios_2017_20180911.xlsx'
+info_rg = pd.read_excel(path_info_rg, dtype = 'object')
 
 
 ## Reading info from Brasil.IO
@@ -44,82 +55,175 @@ req = Request('https://brasil.io/dataset/covid19/caso?format=csv', headers={'Use
 data_covidbr = pd.read_csv(urlopen(req), 
                       dtype = {'city_ibge_code': 'object'},
                       parse_dates = ['date'])
+data_covidbr = data_covidbr[(data_covidbr['place_type'] == 'city')]
 
-### Keeping only the needed info
-data_covidbr = data_covidbr[(data_covidbr['place_type'] == 'city') & (data_covidbr['is_last'])]
+### Keeping only the updated info
+current_data_covidbr = data_covidbr[data_covidbr['is_last']][:]
 ## is_last tells us that we are working the most up-to-date data.
 
 
 #Organizing data section
-data_covidbr.drop(axis = 1, labels = ['date', 
-                                      'place_type', 
-                                      'is_last', 
-                                      'estimated_population_2019', 
-                                      'confirmed_per_100k_inhabitants', 
-                                      'death_rate'], inplace = True)
-    
-df_states = data_covidbr.groupby(by = 'state').sum()
-locations_states = df_states.index
+current_data_covidbr.drop(axis = 1, labels = ['date', 
+                                              'place_type', 
+                                              'is_last', 
+                                              'estimated_population_2019', 
+                                              'confirmed_per_100k_inhabitants', 
+                                              'death_rate'], inplace = True)
+
+
+df_states_current = current_data_covidbr.groupby(by = 'state').sum()
+df_mun_current = current_data_covidbr[:]
+
+### Combining to get rgi and rgintermed info
+data_covidbr_combo = current_data_covidbr.merge(info_rg, 
+                                                left_on = 'city_ibge_code', 
+                                                right_on = 'CD_GEOCODI', 
+                                                how = 'outer')
+df_rgi_current = data_covidbr_combo.groupby(by = 'nome_rgi').sum()
+df_rgintermed_current = data_covidbr_combo.groupby(by = 'nome_rgint').sum()
+
+
+### Summing up total numbers
+total_cases = df_states_current['confirmed'].sum()
+total_deaths = df_states_current['deaths'].sum()
+
+
+locations_states = df_states_current.index
+locations_rgintermed = df_rgintermed_current.index
+locations_rgi = df_rgi_current.index
+locations_mun = df_mun_current['city']
+
 
 
 
 #Creating the core of the dashboard
-app = dash.Dash()
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets) 
 
 server = app.server #Disable it when in test / development mode. Enable it to Production mode
 app.layout = html.Div([
-        html.Div(html.H1('Painel COVID-19 nos municípios, regiões geográficas imediatas e intermediárias e estados brasileiros')),
-        html.Div(dcc.Graph(id = 'main_map',
-                           figure = {
-                                   'data': [go.Choroplethmapbox(geojson = jdataBra_states,
-                                                                locations = locations_states,
-                                                                z = df_states['deaths'],
-                                                                featureidkey = 'properties.SIGLA_UF',
-                                                                colorscale = 'RdPu')],
-                                   'layout': go.Layout(
-                                           title = 'Mapa de óbitos por estados brasileiro',
+        dcc.Store(id="store_data"), #later understand why this is useful
+        
+        html.Div(html.H1('Painel COVID-19 nas localidades brasileiras')),
+        
+        html.Div([
+                html.Div(
+                    [
+                        daq.LEDDisplay(id='cases-LED-display',
+                                label= 'Total de casos confirmados no Brasil',
+                                value=total_cases, color = 'black')
+                    ],
+                    className="one-third column",
+                ),
+                html.Div(
+                    [
+                        
+                    ],
+                    className="one-half column",
+                    id="title",
+                ),
+                html.Div(
+                    [
+                        daq.LEDDisplay(id='deaths-LED-display',
+                                label= 'Total de óbitos confirmados no Brasil',
+                                value=total_deaths, color = 'black')
+                    ],
+                    className="one-third column",
+                    id="button",
+                ),
+            ],
+            id="header",
+            className="row flex-display",
+            style={"margin-bottom": "25px"}), #closing Div with overall scores
+        
+        html.Div([html.Div('Selecione o nível de organização do território:'),
+                dcc.Dropdown(id = 'dropdown_geo_level', 
+                               options = [
+                                       {'label': 'Estados', 'value': 'states'},
+                                       {'label': 'Regiões Geográficas Intermediárias', 'value': 'rgintermed'}, 
+                                       {'label': 'Regiões Geográficas Intermediárias', 'value': 'rgi'}, 
+                                       {'label': 'Municípios', 'value': 'cities'}
+                                       ], 
+                               value = 'states', 
+                               multi = False)]),
+        
+        
+        html.Div([html.Div('Selectione o tipo de informação:'),
+                dcc.Dropdown(id = 'dropdown_info', 
+                               options = [
+                                       {'label': 'Total de casos', 'value': 'confirmed'},
+                                       {'label': 'Total de óbitos', 'value': 'deaths'}, 
+                                       #{'label': 'Total de casos por habitantes', 'value': 'confirmed_per_pop'}, 
+                                       #{'label': 'Total de óbitos por habitantes', 'value': 'deaths_per_pop'}
+                                       ], 
+                               value = 'confirmed', 
+                               multi = False)]),
+        
+        
+        html.Div(dcc.Graph(id = 'main_map'), #closing dcc.Graph
+    #style={'width':1000, 'height':800, 'border':'2px black'}
+    ) #closing html.Div
+]) #closing main html.Div
+        
+        
+        
+        
+        
+        
+        
+# Callbacks - here is where the magic happens
+@app.callback(Output('main_map', 'figure'),
+              [Input('dropdown_info', 'value'),
+               Input('dropdown_geo_level', 'value')])
+def update_figure(info, geo_level):
+    ### according to the geo_level, we'll choose the right DataFrame
+    if geo_level == 'states':
+        df = df_states_current
+        locations = locations_states
+        geojson = jdataBra_states
+        featureidkey = 'properties.SIGLA_UF'
+    elif geo_level == 'rgintermed':
+        df = df_rgintermed_current
+        locations = locations_rgintermed
+        geojson = jdataBra_rgintermed
+        featureidkey='properties.NM_RGINT'
+    elif geo_level == 'rgi':
+        df = df_rgi_current
+        locations = locations_rgi
+        geojson = jdataBra_rgimed
+        featureidkey = featureidkey='properties.NM_RGI'
+    elif geo_level == 'cities':
+        df = df_mun_current
+        locations = locations_mun
+        geojson = jdataBra_municipios
+        featureidkey = featureidkey='properties.NM_MUN'
+    else:  #else select states
+        df = df_states_current
+        locations = locations_states
+        geojson = jdataBra_states
+        featureidkey = 'properties.SIGLA_UF'
+        
+     
+    figure = {'data': [go.Choroplethmapbox(geojson = geojson,
+                                           locations = locations,
+                                           z = df[info],
+                                           featureidkey = featureidkey,
+                                           colorscale = 'RdPu')],
+                'layout': go.Layout(
+                                           #title = 'Mapa de óbitos por estados brasileiro',
                                            hovermode = 'closest',
                                            width = 1000,
-                                           height = 900,
+                                           height = 700,
                                            mapbox={'zoom': 3,
                                                    'style': 'carto-positron',
                                                    'center': {"lat": -15, "lon": -60}})
                                    } #closing figure
-    ), #closing dcc.Graph
-    style={'width':1000, 'height':800, 'border':'2px black'}) #closing html.Div
-]) #closing main html.Div
-
+                                   
+    return figure
+    
+    
     
     
 if __name__ == '__main__':
     app.run_server()
 
-'''
-@app.callback(Output('counter_text', 'children'),
-              [Input('interval-component', 'n_intervals')])
-def update_layout(n):
-    url = "https://data-live.flightradar24.com/zones/fcgi/feed.js?faa=1\
-           &mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&stats=1"
-    # A fake header is necessary to access the site:
-    res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
-    data = res.json()
-    counter = 0
-    for element in data["stats"]["total"]:
-        counter += data["stats"]["total"][element]
-    counter_list.append(counter)
-    return 'Active flights worldwide: {}'.format(counter)
-
-@app.callback(Output('live-update-graph','figure'),
-              [Input('interval-component', 'n_intervals')])
-def update_graph(n):
-    fig = go.Figure(
-        data = [go.Scatter(
-        x = list(range(len(counter_list))),
-        y = counter_list,
-        mode='lines+markers'
-        )])
-    return fig
-
-if __name__ == '__main__':
-    app.run_server()
-'''
