@@ -47,6 +47,19 @@ with open('Maps/brasil_4.json', encoding='utf-8') as geofile4:
 path_info_rg = 'Tables/regioes_geograficas_composicao_por_municipios_2017_20180911.xlsx'
 info_rg = pd.read_excel(path_info_rg, dtype = 'object')
 
+## Reading info about population in cities:
+path_info_pop = 'Tables/population_estimations.xls'
+info_pop = pd.read_excel(path_info_pop, dtype = 'object')
+info_pop['CD_GEOCODI'] = info_pop['COD. UF'].astype(str) + info_pop['COD. MUNIC'].astype(str)
+
+
+### Generating population estimations
+info_rg = info_rg.merge(info_pop[['CD_GEOCODI', 'POPULAÇÃO ESTIMADA']], on = 'CD_GEOCODI') #including the population inside the dataframe
+pop_rgi = info_rg.groupby('nome_rgi').sum()['POPULAÇÃO ESTIMADA']
+pop_rgintermed = info_rg.groupby('nome_rgint').sum()['POPULAÇÃO ESTIMADA']
+pop_uf = info_pop.groupby('UF').sum()['POPULAÇÃO ESTIMADA']
+
+
 
 ## Reading info from Brasil.IO
 
@@ -86,7 +99,43 @@ df_rgintermed_current = data_covidbr_combo.groupby(by = 'nome_rgint').sum()
 total_cases = df_states_current['confirmed'].sum()
 total_deaths = df_states_current['deaths'].sum()
 
+### including population info and calculating rates
+df_states_current = df_states_current.merge(pop_uf, 
+                                            left_index = True, 
+                                            right_on = 'UF', 
+                                            how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
+df_states_current['death_rate'] = 10**5 * df_states_current['deaths'] / df_states_current['pop'] ### deaths per 100.000 inhabitantes
+df_states_current['case_rate'] = 10**5 * df_states_current['confirmed'] / df_states_current['pop'] ### cases per 100.000 inhabitantes
 
+
+df_rgintermed_current = df_rgintermed_current.merge(pop_rgintermed, 
+                                                    left_index = True, 
+                                                    right_on = 'nome_rgint', 
+                                                    how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
+df_rgintermed_current['death_rate'] = 10**5 * df_rgintermed_current['deaths'] / df_rgintermed_current['pop'] ### deaths per 100.000 inhabitantes
+df_rgintermed_current['case_rate'] = 10**5 * df_rgintermed_current['confirmed'] / df_rgintermed_current['pop'] ### cases per 100.000 inhabitantes
+
+
+df_rgi_current = df_rgi_current.merge(pop_rgi,
+                                      left_index = True,
+                                      right_on = 'nome_rgi', 
+                                      how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
+df_rgi_current['death_rate'] = 10**5 * df_rgi_current['deaths'] / df_rgi_current['pop'] ### deaths per 100.000 inhabitantes
+df_rgi_current['case_rate'] = 10**5 * df_rgi_current['confirmed'] / df_rgi_current['pop'] ### cases per 100.000 inhabitantes
+
+
+
+df_mun_current = df_mun_current.merge(info_pop[['POPULAÇÃO ESTIMADA', 'CD_GEOCODI']], 
+                                      left_on = 'city_ibge_code', 
+                                      right_on = 'CD_GEOCODI', 
+                                      how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
+df_mun_current['death_rate'] = 10**5 * df_mun_current['deaths'] / df_mun_current['pop'] ### deaths per 100.000 inhabitantes
+df_mun_current['case_rate'] = 10**5 * df_mun_current['confirmed'] / df_mun_current['pop'] ### cases per 100.000 inhabitantes
+
+
+
+
+### Creating the locations for each level of geo organization
 locations_states = df_states_current.index
 locations_rgintermed = df_rgintermed_current.index
 locations_rgi = df_rgi_current.index
@@ -140,7 +189,7 @@ app.layout = html.Div([
                                options = [
                                        {'label': 'Estados', 'value': 'states'},
                                        {'label': 'Regiões Geográficas Intermediárias', 'value': 'rgintermed'}, 
-                                       {'label': 'Regiões Geográficas Intermediárias', 'value': 'rgi'}, 
+                                       {'label': 'Regiões Geográficas Imediatas', 'value': 'rgi'}, 
                                        {'label': 'Municípios', 'value': 'cities'}
                                        ], 
                                value = 'states', 
@@ -152,10 +201,10 @@ app.layout = html.Div([
                                options = [
                                        {'label': 'Total de casos', 'value': 'confirmed'},
                                        {'label': 'Total de óbitos', 'value': 'deaths'}, 
-                                       #{'label': 'Total de casos por habitantes', 'value': 'confirmed_per_pop'}, 
-                                       #{'label': 'Total de óbitos por habitantes', 'value': 'deaths_per_pop'}
+                                       {'label': 'Total de casos por 100.000 habitantes', 'value': 'case_rate'}, 
+                                       {'label': 'Total de óbitos por 100.000 habitantes', 'value': 'death_rate'}
                                        ], 
-                               value = 'confirmed', 
+                               value = 'case_rate', 
                                multi = False)]), ### closing Div-Div-Dropdown
         
         
@@ -218,7 +267,9 @@ def update_figure(info, geo_level):
                                            locations = locations,
                                            z = df[info],
                                            featureidkey = featureidkey,
-                                           colorscale = 'RdPu')],
+                                           colorscale = 'RdPu',
+                                           #hovertemplate = '<b>%{customdata[0]}</b><br>z2:%{customdata[1]:.3f} <br>z3: %{customdata[2]:.3f} ',
+                                           customdata=df)],
                 'layout': go.Layout(
                                            #title = 'Mapa de óbitos por estados brasileiro',
                                            hovermode = 'closest',
@@ -235,5 +286,5 @@ def update_figure(info, geo_level):
     
     
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug = True)
 
