@@ -63,7 +63,7 @@ pop_uf = info_pop.groupby('UF').sum()['POPULAÇÃO ESTIMADA']
 
 ## Reading info from Brasil.IO
 
-req = Request('https://brasil.io/dataset/covid19/caso?format=csv', headers={'User-Agent': 'Mozilla/5.0'})
+req = Request('https://brasil.io/dataset/covid19/caso/?format=csv', headers={'User-Agent': 'Mozilla/5.0'})
 data_covidbr = pd.read_csv(urlopen(req), 
                       dtype = {'city_ibge_code': 'object'},
                       parse_dates = ['date'])
