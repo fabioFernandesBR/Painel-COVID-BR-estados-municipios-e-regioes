@@ -62,20 +62,31 @@ pop_uf = info_pop.groupby('UF').sum()['POPULAÇÃO ESTIMADA']
 
 
 ## Reading info from Brasil.IO
-
+'''
+##### https://brasil.io/dataset/covid19/caso/?format=csv
 req = Request('https://brasil.io/dataset/covid19/caso/?format=csv', headers={'User-Agent': 'Mozilla/5.0'})
 data_covidbr = pd.read_csv(urlopen(req), 
                       dtype = {'city_ibge_code': 'object'},
                       parse_dates = ['date'])
-data_covidbr = data_covidbr[(data_covidbr['place_type'] == 'city')]
+'''
+
+## Alternatively reading from the hard drive previously downloaded file
+
+data_covidbr = pd.read_csv('Tables/covid19original.csv', 
+                      dtype = {'city_ibge_code': 'object'},
+                      parse_dates = ['date'])
+
+
+
+data_covidbr_city = data_covidbr[(data_covidbr['place_type'] == 'city')]
 
 ### Keeping only the updated info
-current_data_covidbr = data_covidbr[data_covidbr['is_last']][:]
+current_data_covidbr_city = data_covidbr_city[data_covidbr['is_last']][:]
 ## is_last tells us that we are working the most up-to-date data.
 
 
 #Organizing data section
-current_data_covidbr.drop(axis = 1, labels = ['date', 
+current_data_covidbr_city.drop(axis = 1, labels = ['date', 
                                               'place_type', 
                                               'is_last', 
                                               'estimated_population_2019', 
@@ -83,11 +94,11 @@ current_data_covidbr.drop(axis = 1, labels = ['date',
                                               'death_rate'], inplace = True)
 
 
-df_states_current = current_data_covidbr.groupby(by = 'state').sum()
-df_mun_current = current_data_covidbr[:]
+df_states_current = current_data_covidbr_city.groupby(by = 'state').sum()
+df_mun_current = current_data_covidbr_city[:]
 
 ### Combining to get rgi and rgintermed info
-data_covidbr_combo = current_data_covidbr.merge(info_rg, 
+data_covidbr_combo = current_data_covidbr_city.merge(info_rg, 
                                                 left_on = 'city_ibge_code', 
                                                 right_on = 'CD_GEOCODI', 
                                                 how = 'outer')
