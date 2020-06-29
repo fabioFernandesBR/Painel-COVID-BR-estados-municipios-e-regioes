@@ -16,6 +16,7 @@ import pandas as pd
 import json
 from urllib.request import Request, urlopen
 import dash_daq as daq
+import dash_table
 
 
 '''
@@ -155,6 +156,15 @@ locations_mun = df_mun_current['city']
 
 
 
+### organizing the datasets to be shown:
+df_rgi_current = df_rgi_current.reset_index()
+df_rgintermed_current = df_rgintermed_current.reset_index()
+df_states_current = df_states_current.reset_index()
+df_mun_current['complete_address'] = df_mun_current['city'] + '/' + df_mun_current['state']
+
+df_mun_current_2 = df_mun_current.loc[ : , ['complete_address', 'confirmed', 'deaths', 'pop', 'death_rate', 'case_rate']]
+
+
 #Creating the core of the dashboard
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets) 
@@ -172,23 +182,14 @@ app.layout = html.Div([
                                 label= 'Total de casos confirmados no Brasil',
                                 value=total_cases, color = 'black')
                     ],
-                    className="one-third column",
                 ),
-                html.Div(
-                    [
-                        
-                    ],
-                    className="one-half column",
-                    id="title",
-                ),
+            
                 html.Div(
                     [
                         daq.LEDDisplay(id='deaths-LED-display',
                                 label= 'Total de óbitos confirmados no Brasil',
                                 value=total_deaths, color = 'black')
-                    ],
-                    className="one-third column",
-                    id="button",
+                    ]
                 ),
             ],
             id="header",
@@ -221,9 +222,26 @@ app.layout = html.Div([
         
         html.Div(dcc.Graph(id = 'main_map'), #closing dcc.Graph
     #style={'width':1000, 'height':800, 'border':'2px black'}
-    ), ### closing Div-Graph
+                ), ### closing Div-Graph
     
-        html.Div(dcc.Markdown('''
+        html.Div(dash_table.DataTable(id='table', 
+                                      export_format = 'xslx',
+                                      style_cell={'textAlign': 'right'},
+                                      style_data_conditional=[
+                                              {
+                                                'if': {'row_index': 'odd'},
+                                                'backgroundColor': 'rgb(248, 248, 248)'
+                                                }, 
+                                              {
+                                                    'if': {'column_id': 'Localidade'},
+                                                    'textAlign': 'left'
+                                                }], 
+                                      style_header={
+                                              'backgroundColor': 'rgb(230, 230, 230)',
+                                              'fontWeight': 'bold'}
+                                      )),
+        html.Div(dcc.Markdown(
+                            '''
                               Os dados reportados neste painel foram obtidos na plataforma Brasil.IO, repositório de dados públicos disponibilizados em formato acessível. Conheça e apoie esta iniciativa.
                               
                               https://brasil.io/home/
@@ -231,7 +249,8 @@ app.layout = html.Div([
                               
                               
                               Os mapas foram obtidos no site do IBGE em formato shapefile e simplificados usando a biblioteca Geopandas.
-                              ''') #closing Markdown
+                              '''
+                              ) #closing Markdown
         ) ### closing Div-Markdown
 ]) #closing main html.Div
         
@@ -242,7 +261,9 @@ app.layout = html.Div([
         
         
 # Callbacks - here is where the magic happens
-@app.callback(Output('main_map', 'figure'),
+@app.callback([Output('main_map', 'figure'),
+               Output('table', 'data'),
+               Output('table', 'columns')],
               [Input('dropdown_info', 'value'),
                Input('dropdown_geo_level', 'value')])
 def update_figure(info, geo_level):
@@ -263,7 +284,7 @@ def update_figure(info, geo_level):
         geojson = jdataBra_rgimed
         featureidkey = featureidkey='properties.NM_RGI'
     elif geo_level == 'cities':
-        df = df_mun_current
+        df = df_mun_current_2
         locations = locations_mun
         geojson = jdataBra_municipios
         featureidkey = featureidkey='properties.NM_MUN'
@@ -290,8 +311,23 @@ def update_figure(info, geo_level):
                                                    'style': 'carto-positron',
                                                    'center': {"lat": -15, "lon": -60}})
                                    } #closing figure
+                
+    
+    
+    
+    data=df.sort_values(by = info, ascending = False).to_dict('records')
+    
+    formatlocale_ptBR = {"decimal": ",", "thousands": ".", "grouping": [3], 'group': '.', "currency": ["R$", ""], 'separate_4digits': True}
+    
+    columns=[{'id': df.columns[0], 'name': 'Localidade', 'type': 'text'},
+              {'id': 'confirmed', 'name': 'Total de casos confirmados', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.0f'}},
+              {'id': 'deaths', 'name': 'Total de óbitos confirmados', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.0f'}},
+              {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.0f'}},
+              {'id': 'death_rate', 'name': 'Taxa de óbitos por 100.000 hab', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.1f'}},
+              {'id': 'case_rate', 'name': 'Taxa de casos por 100.000 hab', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.1f'}}]
+    
                                    
-    return figure
+    return figure, data, columns
     
     
     
