@@ -17,6 +17,7 @@ import json
 from urllib.request import Request, urlopen
 import dash_daq as daq
 import dash_table
+from dash_table.Format import Format, Group, Scheme, Symbol
 
 
 '''
@@ -27,6 +28,12 @@ Source of COVID data: https://brasil.io/dataset/covid19/caso?format=csv
 
 
 #Reading data section
+
+## Reading last update info
+readfile = open('last_update.txt', 'r')
+last_update = readfile.readlines()
+readfile.close()
+
 
 ## Reading maps  #Those maps were prepared before construction of these program
 with open('Maps/brasil_1.json', encoding='utf-8') as geofile1:
@@ -175,6 +182,8 @@ app.layout = html.Div([
         
         html.Div(html.H1('Painel COVID-19 nas localidades brasileiras')),
         
+        html.Div(html.H6(last_update)),
+        
         html.Div([
                 html.Div(
                     [
@@ -196,6 +205,7 @@ app.layout = html.Div([
             className="row flex-display",
             style={"margin-bottom": "25px"}), #closing Div with overall scores
         
+                
         html.Div([html.Div('Selecione o nível de organização do território:'),
                 dcc.Dropdown(id = 'dropdown_geo_level', 
                                options = [
@@ -317,14 +327,35 @@ def update_figure(info, geo_level):
     
     data=df.sort_values(by = info, ascending = False).to_dict('records')
     
-    formatlocale_ptBR = {"decimal": ",", "thousands": ".", "grouping": [3], 'group': '.', "currency": ["R$", ""], 'separate_4digits': True}
+    formatlocale_ptBR_int = Format(
+            scheme = Scheme.fixed,
+            precision = 0,
+            group = Group.yes,
+            groups = 3,
+            group_delimiter = '.',
+            decimal_delimiter = ',',
+            symbol = Symbol.no,
+            symbol_prefix = u'R$')
+  
+    formatlocale_ptBR_float = Format(
+            scheme = Scheme.fixed,
+            precision = 1,
+            group = Group.yes,
+            groups = 3,
+            group_delimiter = '.',
+            decimal_delimiter = ',',
+            symbol = Symbol.no,
+            symbol_prefix = u'R$')
+    
+    
+    
     
     columns=[{'id': df.columns[0], 'name': 'Localidade', 'type': 'text'},
-              {'id': 'confirmed', 'name': 'Total de casos confirmados', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.0f'}},
-              {'id': 'deaths', 'name': 'Total de óbitos confirmados', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.0f'}},
-              {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.0f'}},
-              {'id': 'death_rate', 'name': 'Taxa de óbitos por 100.000 hab', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.1f'}},
-              {'id': 'case_rate', 'name': 'Taxa de casos por 100.000 hab', 'type': 'numeric', 'format': {'locale': formatlocale_ptBR, 'specifier': '.1f'}}]
+              {'id': 'confirmed', 'name': 'Total de casos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+              {'id': 'deaths', 'name': 'Total de óbitos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+              {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+              {'id': 'death_rate', 'name': 'Taxa de óbitos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+              {'id': 'case_rate', 'name': 'Taxa de casos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float}]
     
                                    
     return figure, data, columns
