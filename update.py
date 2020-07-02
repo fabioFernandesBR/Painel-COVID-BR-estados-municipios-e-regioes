@@ -6,7 +6,7 @@ Created on Sat Jun 13 18:13:21 2020
 """
 
 
-# Libbraries importing section
+# Libraries importing section
 from urllib.request import Request, urlopen
 import pandas as pd
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -43,7 +43,7 @@ def scheduled_job():
     
   
     
-#sched.start()
+sched.start()
 
 
 #Fonte: Secretarias de Saúde das Unidades Federativas, dados tratados por Álvaro Justen e colaboradores/Brasil.IO. 
