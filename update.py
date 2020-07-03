@@ -21,7 +21,9 @@ def scheduled_job():
 
     #Reading data section
     ## Reading info from Brasil.IO
+    '''
     url = 'https://data.brasil.io/dataset/covid19/caso.csv.gz'
+    
     req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
     data_covidbr = pd.read_csv(urlopen(req), 
                       dtype = {'city_ibge_code': 'object'},
@@ -29,14 +31,17 @@ def scheduled_job():
                       compression = 'gzip')
 
     data_covidbr_city = data_covidbr[(data_covidbr['place_type'] == 'city')]
+    '''
     
     now = datetime.now()
     now_string = now.strftime("%d/%m/%Y %H:%M:%S")
     
        
     # Saving files
+    '''
     path_to_save = 'Tables/covid19original.csv'
     data_covidbr_city.to_csv(path_to_save)
+    '''
     
     with open('last_update.txt', 'w') as f:
         f.write(now_string)
