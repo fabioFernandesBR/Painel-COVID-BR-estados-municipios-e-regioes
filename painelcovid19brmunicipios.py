@@ -126,7 +126,7 @@ locations_mun = df_hoje['codigo_ibge']
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets) 
 
-#server = app.server #Disable it when in test / development mode. Enable it to Production mode
+server = app.server #Disable it when in test / development mode. Enable it to Production mode
 app.layout = html.Div([
         #dcc.Store(id="store_data"), #later understand why this is useful
         
@@ -392,6 +392,6 @@ def update_figure(info, geo_level):
     
     
 if __name__ == '__main__':
-    app.run_server()
+    app.run_server(debug = True)
 
 
