@@ -61,7 +61,8 @@ tdf = pd.read_csv('Tables/tdf.csv',
                            'cod_rgi': 'object',
                            'cod_rgint': 'object',
                            'cod_uf': 'object'},
-                           encoding = 'latin1')
+                           encoding = 'latin1', 
+                           compression = 'gzip')
 tdf = tdf.drop(axis = 1, labels = ['Unnamed: 0'])
 
 
@@ -71,7 +72,8 @@ tdf_rgi = pd.read_csv('Tables/tdf_rgi.csv',
                            'total_obitos': 'int64',
                            'novos_casos': 'int64',
                            'novos_obitos': 'int64'},
-                           encoding = 'latin1')
+                           encoding = 'latin1', 
+                           compression = 'gzip')
 tdf_rgi = tdf_rgi.drop(axis = 1, labels = ['Unnamed: 0'])
 
 tdf_rgint = pd.read_csv('Tables/tdf_rgint.csv',
@@ -80,7 +82,8 @@ tdf_rgint = pd.read_csv('Tables/tdf_rgint.csv',
                            'total_obitos': 'int64',
                            'novos_casos': 'int64',
                            'novos_obitos': 'int64'},
-                           encoding = 'latin1')
+                           encoding = 'latin1', 
+                           compression = 'gzip')
 tdf_rgint = tdf_rgint.drop(axis = 1, labels = ['Unnamed: 0'])
 
 
@@ -90,7 +93,8 @@ tdf_estados = pd.read_csv('Tables/tdf_estados.csv',
                            'total_obitos': 'int64',
                            'novos_casos': 'int64',
                            'novos_obitos': 'int64'},
-                           encoding = 'latin1')
+                           encoding = 'latin1', 
+                           compression = 'gzip')
 tdf_estados = tdf_estados.drop(axis = 1, labels = ['Unnamed: 0'])
 
 
@@ -391,26 +395,3 @@ if __name__ == '__main__':
     app.run_server()
 
 
-
-        
-'''
-columns=[{'id': 'nome_mun', 'name': 'Município', 'type': 'text'},
-                 {'id': 'nome_rgi', 'name': 'Região Imediata', 'type': 'text'},
-                 {'id': 'nome_rgint', 'name': 'Região Intermediária', 'type': 'text'},
-                 {'id': 'sigla_estado', 'name': 'Estado', 'type': 'text'},
-                 {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'total_casos', 'name': 'Total de casos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'total_obitos', 'name': 'Total de óbitos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'novos_casos', 'name': 'Novos casos confirmados hoje', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'novos_obitos', 'name': 'Novos óbitos confirmados hoje', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'mm_7dias_novos_casos', 'name': 'Média Móvel (7 dias) dos novos casos', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'mm_7dias_novos_obitos', 'name': 'Média Móvel (7 dias) dos novos óbitos', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'total_casos%', 'name': 'Total de casos confirmados por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'total_obitos%', 'name': 'Total de óbitos confirmados por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'novos_casos%', 'name': 'Novos casos confirmados hoje por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'novos_obitos%', 'name': 'Novos óbitos confirmados hoje por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'mm_7dias_novos_casos%', 'name': 'Média Móvel (7 dias) dos novos casos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'mm_7dias_novos_obitos%', 'name': 'Média Móvel (7 dias) dos novos óbitos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 
-'''
-    

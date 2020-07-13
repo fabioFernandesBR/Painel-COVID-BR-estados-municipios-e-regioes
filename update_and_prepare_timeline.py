@@ -146,9 +146,9 @@ tdf_estados['mm_7dias_novos_obitos%'] = 10**5 * tdf_estados['mm_7dias_novos_obit
 
 
 ## Saving files
-tdf.to_csv('Tables/tdf.csv', encoding = 'latin1')
-tdf_rgi.to_csv('Tables/tdf_rgi.csv', encoding = 'latin1')
-tdf_rgint.to_csv('Tables/tdf_rgint.csv', encoding = 'latin1')
-tdf_estados.to_csv('Tables/tdf_estados.csv', encoding = 'latin1')
+tdf.to_csv('Tables/tdf.csv', encoding = 'latin1', compression = 'gzip')
+tdf_rgi.to_csv('Tables/tdf_rgi.csv', encoding = 'latin1', compression = 'gzip')
+tdf_rgint.to_csv('Tables/tdf_rgint.csv', encoding = 'latin1', compression = 'gzip')
+tdf_estados.to_csv('Tables/tdf_estados.csv', encoding = 'latin1', compression = 'gzip')
 with open('last_update.txt', 'w') as f:
         f.write(now_string)
