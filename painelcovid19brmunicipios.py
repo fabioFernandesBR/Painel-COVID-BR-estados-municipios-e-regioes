@@ -14,11 +14,10 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import pandas as pd
 import json
-from urllib.request import Request, urlopen
 import dash_daq as daq
 import dash_table
 from dash_table.Format import Format, Group, Scheme, Symbol
-
+import datetime as dt
 
 '''
 Source of Population Info: https://www.ibge.gov.br/estatisticas/sociais/populacao/9103-estimativas-de-populacao.html?edicao=25272&t=downloads
@@ -51,132 +50,79 @@ with open('Maps/brasil_4.json', encoding='utf-8') as geofile4:
     jdataBra_municipios = json.load(geofile4)
 
 
-## Reading info about geographical locations
-path_info_rg = 'Tables/regioes_geograficas_composicao_por_municipios_2017_20180911.xlsx'
-info_rg = pd.read_excel(path_info_rg, dtype = 'object')
+## Reading info from the hard drive previously downloaded and manipulated file
 
-## Reading info about population in cities:
-path_info_pop = 'Tables/population_estimations.xls'
-info_pop = pd.read_excel(path_info_pop, dtype = 'object')
-info_pop['CD_GEOCODI'] = info_pop['COD. UF'].astype(str) + info_pop['COD. MUNIC'].astype(str)
-
-
-### Generating population estimations
-info_rg = info_rg.merge(info_pop[['CD_GEOCODI', 'POPULAÇÃO ESTIMADA']], on = 'CD_GEOCODI') #including the population inside the dataframe
-pop_rgi = info_rg.groupby('nome_rgi').sum()['POPULAÇÃO ESTIMADA']
-pop_rgintermed = info_rg.groupby('nome_rgint').sum()['POPULAÇÃO ESTIMADA']
-pop_uf = info_pop.groupby('UF').sum()['POPULAÇÃO ESTIMADA']
+tdf = pd.read_csv('Tables/tdf.csv',
+                  parse_dates = ['data'], 
+                  dtype = {'total_casos': 'int64',
+                           'total_obitos': 'int64',
+                           'novos_casos': 'int64',
+                           'novos_obitos': 'int64',
+                           'cod_rgi': 'object',
+                           'cod_rgint': 'object',
+                           'cod_uf': 'object'},
+                           encoding = 'latin1')
+tdf = tdf.drop(axis = 1, labels = ['Unnamed: 0'])
 
 
+tdf_rgi = pd.read_csv('Tables/tdf_rgi.csv',
+                  parse_dates = ['data'], 
+                  dtype = {'total_casos': 'int64',
+                           'total_obitos': 'int64',
+                           'novos_casos': 'int64',
+                           'novos_obitos': 'int64'},
+                           encoding = 'latin1')
+tdf_rgi = tdf_rgi.drop(axis = 1, labels = ['Unnamed: 0'])
 
-## Reading info from Brasil.IO
-'''
-##### https://brasil.io/dataset/covid19/caso/?format=csv
-req = Request('https://brasil.io/dataset/covid19/caso/?format=csv', headers={'User-Agent': 'Mozilla/5.0'})
-data_covidbr = pd.read_csv(urlopen(req), 
-                      dtype = {'city_ibge_code': 'object'},
-                      parse_dates = ['date'])
-'''
-
-## Alternatively reading from the hard drive previously downloaded file
-
-data_covidbr = pd.read_csv('Tables/covid19original.csv', 
-                      dtype = {'city_ibge_code': 'object'},
-                      parse_dates = ['date'])
+tdf_rgint = pd.read_csv('Tables/tdf_rgint.csv',
+                  parse_dates = ['data'], 
+                  dtype = {'total_casos': 'int64',
+                           'total_obitos': 'int64',
+                           'novos_casos': 'int64',
+                           'novos_obitos': 'int64'},
+                           encoding = 'latin1')
+tdf_rgint = tdf_rgint.drop(axis = 1, labels = ['Unnamed: 0'])
 
 
+tdf_estados = pd.read_csv('Tables/tdf_estados.csv',
+                  parse_dates = ['data'], 
+                  dtype = {'total_casos': 'int64',
+                           'total_obitos': 'int64',
+                           'novos_casos': 'int64',
+                           'novos_obitos': 'int64'},
+                           encoding = 'latin1')
+tdf_estados = tdf_estados.drop(axis = 1, labels = ['Unnamed: 0'])
 
-data_covidbr_city = data_covidbr[(data_covidbr['place_type'] == 'city')]
+
+
+
+
 
 ### Keeping only the updated info
-current_data_covidbr_city = data_covidbr_city[data_covidbr['is_last']][:]
-## is_last tells us that we are working the most up-to-date data.
 
-
-#Organizing data section
-current_data_covidbr_city.drop(axis = 1, labels = ['date', 
-                                              'place_type', 
-                                              'is_last', 
-                                              'estimated_population_2019', 
-                                              'confirmed_per_100k_inhabitants', 
-                                              'death_rate'], inplace = True)
-
-
-df_states_current = current_data_covidbr_city.groupby(by = 'state').sum()
-df_mun_current = current_data_covidbr_city[:]
-
-### Combining to get rgi and rgintermed info
-data_covidbr_combo = current_data_covidbr_city.merge(info_rg, 
-                                                left_on = 'city_ibge_code', 
-                                                right_on = 'CD_GEOCODI', 
-                                                how = 'outer')
-df_rgi_current = data_covidbr_combo.groupby(by = 'nome_rgi').sum()
-df_rgintermed_current = data_covidbr_combo.groupby(by = 'nome_rgint').sum()
-
+df_hoje = tdf[tdf['data'] == tdf['data'].max()].copy()
+df_estados_hoje = tdf_estados[tdf_estados['data'] == tdf_estados['data'].max()].copy()
+df_rgint_hoje = tdf_rgint[tdf_rgint['data'] == tdf_rgint['data'].max()].copy()
+df_rgi_hoje = tdf_rgi[tdf_rgi['data'] == tdf_rgi['data'].max()].copy()
 
 ### Summing up total numbers
-total_cases = df_states_current['confirmed'].sum()
-total_deaths = df_states_current['deaths'].sum()
-
-### including population info and calculating rates
-df_states_current = df_states_current.merge(pop_uf, 
-                                            left_index = True, 
-                                            right_on = 'UF', 
-                                            how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
-df_states_current['death_rate'] = 10**5 * df_states_current['deaths'] / df_states_current['pop'] ### deaths per 100.000 inhabitantes
-df_states_current['case_rate'] = 10**5 * df_states_current['confirmed'] / df_states_current['pop'] ### cases per 100.000 inhabitantes
-
-
-df_rgintermed_current = df_rgintermed_current.merge(pop_rgintermed, 
-                                                    left_index = True, 
-                                                    right_on = 'nome_rgint', 
-                                                    how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
-df_rgintermed_current['death_rate'] = 10**5 * df_rgintermed_current['deaths'] / df_rgintermed_current['pop'] ### deaths per 100.000 inhabitantes
-df_rgintermed_current['case_rate'] = 10**5 * df_rgintermed_current['confirmed'] / df_rgintermed_current['pop'] ### cases per 100.000 inhabitantes
-
-
-df_rgi_current = df_rgi_current.merge(pop_rgi,
-                                      left_index = True,
-                                      right_on = 'nome_rgi', 
-                                      how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
-df_rgi_current['death_rate'] = 10**5 * df_rgi_current['deaths'] / df_rgi_current['pop'] ### deaths per 100.000 inhabitantes
-df_rgi_current['case_rate'] = 10**5 * df_rgi_current['confirmed'] / df_rgi_current['pop'] ### cases per 100.000 inhabitantes
-
-
-
-df_mun_current = df_mun_current.merge(info_pop[['POPULAÇÃO ESTIMADA', 'CD_GEOCODI']], 
-                                      left_on = 'city_ibge_code', 
-                                      right_on = 'CD_GEOCODI', 
-                                      how = 'inner').rename(columns = {'POPULAÇÃO ESTIMADA': 'pop'})
-df_mun_current['death_rate'] = 10**5 * df_mun_current['deaths'] / df_mun_current['pop'] ### deaths per 100.000 inhabitantes
-df_mun_current['case_rate'] = 10**5 * df_mun_current['confirmed'] / df_mun_current['pop'] ### cases per 100.000 inhabitantes
+total_cases = df_estados_hoje['total_casos'].sum()
+total_deaths = df_estados_hoje['total_obitos'].sum()
 
 
 
 
 ### Creating the locations for each level of geo organization
-locations_states = df_states_current.index
-locations_rgintermed = df_rgintermed_current.index
-locations_rgi = df_rgi_current.index
-locations_mun = df_mun_current['city']
-
-
-
-
-### organizing the datasets to be shown:
-df_rgi_current = df_rgi_current.reset_index()
-df_rgintermed_current = df_rgintermed_current.reset_index()
-df_states_current = df_states_current.reset_index()
-df_mun_current['complete_address'] = df_mun_current['city'] + '/' + df_mun_current['state']
-
-df_mun_current_2 = df_mun_current.loc[ : , ['complete_address', 'confirmed', 'deaths', 'pop', 'death_rate', 'case_rate']]
-
+locations_states = df_estados_hoje['sigla_estado']
+locations_rgintermed = df_rgint_hoje['cod_rgint']
+locations_rgi =df_rgi_hoje['cod_rgi']
+locations_mun = df_hoje['codigo_ibge']
 
 #Creating the core of the dashboard
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets) 
 
-server = app.server #Disable it when in test / development mode. Enable it to Production mode
+#server = app.server #Disable it when in test / development mode. Enable it to Production mode
 app.layout = html.Div([
         #dcc.Store(id="store_data"), #later understand why this is useful
         
@@ -189,7 +135,8 @@ app.layout = html.Div([
                     [
                         daq.LEDDisplay(id='cases-LED-display',
                                 label= 'Total de casos confirmados no Brasil',
-                                value=total_cases, color = 'black')
+                                value=total_cases, 
+                                color = 'black')
                     ],
                 ),
             
@@ -197,7 +144,8 @@ app.layout = html.Div([
                     [
                         daq.LEDDisplay(id='deaths-LED-display',
                                 label= 'Total de óbitos confirmados no Brasil',
-                                value=total_deaths, color = 'black')
+                                value=total_deaths, 
+                                color = 'black')
                     ]
                 ),
             ],
@@ -221,12 +169,19 @@ app.layout = html.Div([
         html.Div([html.Div('Selectione o tipo de informação:'),
                 dcc.Dropdown(id = 'dropdown_info', 
                                options = [
-                                       {'label': 'Total de casos', 'value': 'confirmed'},
-                                       {'label': 'Total de óbitos', 'value': 'deaths'}, 
-                                       {'label': 'Total de casos por 100.000 habitantes', 'value': 'case_rate'}, 
-                                       {'label': 'Total de óbitos por 100.000 habitantes', 'value': 'death_rate'}
-                                       ], 
-                               value = 'case_rate', 
+                                       {'label': 'A - Total de casos', 'value': 'total_casos'},
+                                       {'label': 'B - Total de óbitos', 'value': 'total_obitos'},
+                                       {'label': 'C - Novos casos', 'value': 'novos_casos'},
+                                       {'label': 'D - Novos óbitos', 'value': 'novos_obitos'},
+                                       {'label': 'E - Média móvel dos novos casos - 7 dias', 'value': 'mm_7dias_novos_casos'},
+                                       {'label': 'F - Média móvel dos novos óbitos - 7 dias', 'value': 'mm_7dias_novos_obitos'},
+                                       {'label': 'G - Total de casos por 100.000 habitantes', 'value': 'total_casos%'},
+                                       {'label': 'H - Total de óbitos por 100.000 habitantes', 'value': 'total_obitos%'},
+                                       {'label': 'I - Novos casos por 100.000 habitantes', 'value': 'novos_casos%'},
+                                       {'label': 'K - Novos óbitos por 100.000 habitantes', 'value': 'novos_obitos%'},
+                                       {'label': 'K - Média móvel dos novos casos - 7 dias - por 100.000 habitantes', 'value': 'mm_7dias_novos_casos%'},
+                                       {'label': 'L - Média móvel dos novos óbitos - 7 dias - por 100.000 habitantes', 'value': 'mm_7dias_novos_obitos%'}], 
+                               value = 'total_casos', 
                                multi = False)]), ### closing Div-Div-Dropdown
         
         
@@ -235,7 +190,7 @@ app.layout = html.Div([
                 ), ### closing Div-Graph
     
         html.Div(dash_table.DataTable(id='table', 
-                                      export_format = 'xslx',
+                                      export_format = 'csv',
                                       style_cell={'textAlign': 'right'},
                                       style_data_conditional=[
                                               {
@@ -279,27 +234,27 @@ app.layout = html.Div([
 def update_figure(info, geo_level):
     ### according to the geo_level, we'll choose the right DataFrame
     if geo_level == 'states':
-        df = df_states_current
+        df = df_estados_hoje
         locations = locations_states
         geojson = jdataBra_states
         featureidkey = 'properties.SIGLA_UF'
     elif geo_level == 'rgintermed':
-        df = df_rgintermed_current
+        df = df_rgint_hoje
         locations = locations_rgintermed
         geojson = jdataBra_rgintermed
-        featureidkey='properties.NM_RGINT'
+        featureidkey='properties.CD_RGINT'
     elif geo_level == 'rgi':
-        df = df_rgi_current
+        df = df_rgi_hoje
         locations = locations_rgi
         geojson = jdataBra_rgimed
-        featureidkey = featureidkey='properties.NM_RGI'
+        featureidkey = featureidkey='properties.CD_RGI'
     elif geo_level == 'cities':
-        df = df_mun_current_2
+        df = df_hoje
         locations = locations_mun
         geojson = jdataBra_municipios
-        featureidkey = featureidkey='properties.NM_MUN'
+        featureidkey = featureidkey='properties.CD_MUN'
     else:  #else select states
-        df = df_states_current
+        df = df_estados_hoje
         locations = locations_states
         geojson = jdataBra_states
         featureidkey = 'properties.SIGLA_UF'
@@ -348,14 +303,83 @@ def update_figure(info, geo_level):
             symbol_prefix = u'R$')
     
     
+    if geo_level == 'states':
+        columns=[{'id': 'estado', 'name': 'Estado', 'type': 'text'},
+                 {'id': 'sigla_estado', 'name': 'Sigla', 'type': 'text'},
+                 {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos%', 'name': 'L', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 
+                 ]
+    elif geo_level == 'rgintermed':
+        columns=[{'id': 'nome_rgint', 'name': 'Região Intermediária', 'type': 'text'},
+                 {'id': 'estado', 'name': 'Estado', 'type': 'text'},
+                 {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos%', 'name': 'L', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 
+                 ]
+    elif geo_level == 'rgi':
+        columns=[{'id': 'nome_rgi', 'name': 'Região Imediata', 'type': 'text'},
+                 {'id': 'nome_rgint', 'name': 'Região Intermediária', 'type': 'text'},
+                 {'id': 'estado', 'name': 'Estado', 'type': 'text'},
+                 {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos%', 'name': 'L', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 
+                 ]
+    else: #municipios
+        columns=[{'id': 'nome_mun', 'name': 'Município', 'type': 'text'},
+                 {'id': 'nome_rgi', 'name': 'Região Imediata', 'type': 'text'},
+                 {'id': 'nome_rgint', 'name': 'Região Intermediária', 'type': 'text'},
+                 {'id': 'sigla_estado', 'name': 'Estado', 'type': 'text'},
+                 {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos%', 'name': 'L', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 
+                 ]
+
     
-    
-    columns=[{'id': df.columns[0], 'name': 'Localidade', 'type': 'text'},
-              {'id': 'confirmed', 'name': 'Total de casos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-              {'id': 'deaths', 'name': 'Total de óbitos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-              {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-              {'id': 'death_rate', 'name': 'Taxa de óbitos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-              {'id': 'case_rate', 'name': 'Taxa de casos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float}]
     
                                    
     return figure, data, columns
@@ -364,5 +388,29 @@ def update_figure(info, geo_level):
     
     
 if __name__ == '__main__':
-    app.run_server(debug = True)
+    app.run_server()
 
+
+
+        
+'''
+columns=[{'id': 'nome_mun', 'name': 'Município', 'type': 'text'},
+                 {'id': 'nome_rgi', 'name': 'Região Imediata', 'type': 'text'},
+                 {'id': 'nome_rgint', 'name': 'Região Intermediária', 'type': 'text'},
+                 {'id': 'sigla_estado', 'name': 'Estado', 'type': 'text'},
+                 {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos', 'name': 'Total de casos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos', 'name': 'Total de óbitos confirmados', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos', 'name': 'Novos casos confirmados hoje', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos', 'name': 'Novos óbitos confirmados hoje', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos', 'name': 'Média Móvel (7 dias) dos novos casos', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos', 'name': 'Média Móvel (7 dias) dos novos óbitos', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_casos%', 'name': 'Total de casos confirmados por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_obitos%', 'name': 'Total de óbitos confirmados por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_casos%', 'name': 'Novos casos confirmados hoje por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_obitos%', 'name': 'Novos óbitos confirmados hoje por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_casos%', 'name': 'Média Móvel (7 dias) dos novos casos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'mm_7dias_novos_obitos%', 'name': 'Média Móvel (7 dias) dos novos óbitos por 100.000 hab', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 
+'''
+    

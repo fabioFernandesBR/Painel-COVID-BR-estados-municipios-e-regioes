@@ -1,0 +1,134 @@
+cod_rgint,nome_rgint,cod_uf,estado
+1101,Porto Velho,11,Rondônia
+1102,Ji-Paraná,11,Rondônia
+1201,Rio Branco,12,Acre
+1202,Cruzeiro do Sul,12,Acre
+1301,Manaus,13,Amazonas
+1302,Tefé,13,Amazonas
+1303,Lábrea,13,Amazonas
+1304,Parintins,13,Amazonas
+1401,Boa Vista,14,Roraima
+1402,Rorainópolis - Caracaraí,14,Roraima
+1501,Belém,15,Pará
+1502,Castanhal,15,Pará
+1503,Marabá,15,Pará
+1504,Redenção,15,Pará
+1505,Santarém,15,Pará
+1506,Altamira,15,Pará
+1507,Breves,15,Pará
+1601,Macapá,16,Amapá
+1602,Oiapoque - Porto Grande,16,Amapá
+1701,Palmas,17,Tocantins
+1702,Araguaína,17,Tocantins
+1703,Gurupi,17,Tocantins
+2101,São Luís,21,Maranhão
+2102,Santa Inês - Bacabal,21,Maranhão
+2103,Caxias,21,Maranhão
+2104,Presidente Dutra,21,Maranhão
+2105,Imperatriz,21,Maranhão
+2201,Teresina,22,Piauí
+2202,Parnaíba,22,Piauí
+2203,Picos,22,Piauí
+2204,São Raimundo Nonato,22,Piauí
+2205,Corrente - Bom Jesus,22,Piauí
+2206,Floriano,22,Piauí
+2301,Fortaleza,23,Ceará
+2302,Quixadá,23,Ceará
+2303,Iguatu,23,Ceará
+2304,Juazeiro do Norte,23,Ceará
+2305,Crateús,23,Ceará
+2306,Sobral,23,Ceará
+2401,Natal,24,Rio Grande do Norte
+2402,Caicó,24,Rio Grande do Norte
+2403,Mossoró,24,Rio Grande do Norte
+2501,João Pessoa,25,Paraíba
+2502,Campina Grande,25,Paraíba
+2503,Patos,25,Paraíba
+2504,Sousa - Cajazeiras,25,Paraíba
+2601,Recife,26,Pernambuco
+2602,Caruaru,26,Pernambuco
+2603,Serra Talhada,26,Pernambuco
+2604,Petrolina,26,Pernambuco
+2701,Maceió,27,Alagoas
+2702,Arapiraca,27,Alagoas
+2801,Aracaju,28,Sergipe
+2802,Itabaiana,28,Sergipe
+2901,Salvador,29,Bahia
+2902,Santo Antônio de Jesus,29,Bahia
+2903,Ilhéus – Itabuna,29,Bahia
+2904,Vitória da Conquista,29,Bahia
+2905,Guanambi,29,Bahia
+2906,Barreiras,29,Bahia
+2907,Irecê,29,Bahia
+2908,Juazeiro,29,Bahia
+2909,Paulo Afonso,29,Bahia
+2910,Feira de Santana,29,Bahia
+3101,Belo Horizonte,31,Minas Gerais
+3102,Montes Claros,31,Minas Gerais
+3103,Teófilo Otoni,31,Minas Gerais
+3104,Governador Valadares,31,Minas Gerais
+3105,Ipatinga,31,Minas Gerais
+3106,Juíz de Fora,31,Minas Gerais
+3107,Barbacena,31,Minas Gerais
+3108,Varginha,31,Minas Gerais
+3109,Pouso Alegre,31,Minas Gerais
+3110,Uberaba,31,Minas Gerais
+3111,Uberlândia,31,Minas Gerais
+3112,Patos de Minas,31,Minas Gerais
+3113,Divinópolis,31,Minas Gerais
+3201,Vitória,32,Espírito Santo
+3202,São Mateus,32,Espírito Santo
+3203,Colatina,32,Espírito Santo
+3204,Cachoeiro do Itapemirim,32,Espírito Santo
+3301,Rio de Janeiro,33,Rio de Janeiro
+3302,Volta Redonda - Barra Mansa,33,Rio de Janeiro
+3303,Petrópolis,33,Rio de Janeiro
+3304,Campos dos Goytacazes,33,Rio de Janeiro
+3305,Macaé - Rio das Ostras - Cabo Frio,33,Rio de Janeiro
+3501,São Paulo,35,São Paulo
+3502,Sorocaba,35,São Paulo
+3503,Bauru,35,São Paulo
+3504,Marília,35,São Paulo
+3505,Presidente Prudente,35,São Paulo
+3506,Araçatuba,35,São Paulo
+3507,São José do Rio Preto,35,São Paulo
+3508,Ribeirão Preto,35,São Paulo
+3509,Araraquara,35,São Paulo
+3510,Campinas,35,São Paulo
+3511,São José dos Campos,35,São Paulo
+4101,Curitiba,41,Paraná
+4102,Guarapuava,41,Paraná
+4103,Cascavel,41,Paraná
+4104,Maringá,41,Paraná
+4105,Londrina,41,Paraná
+4106,Ponta Grossa,41,Paraná
+4201,Florianópolis,42,Santa Catarina
+4202,Criciúma,42,Santa Catarina
+4203,Lages,42,Santa Catarina
+4204,Chapecó,42,Santa Catarina
+4205,Caçador,42,Santa Catarina
+4206,Joinville,42,Santa Catarina
+4207,Blumenau,42,Santa Catarina
+4301,Porto Alegre,43,Rio Grande do Sul
+4302,Pelotas,43,Rio Grande do Sul
+4303,Santa Maria,43,Rio Grande do Sul
+4304,Uruguaiana,43,Rio Grande do Sul
+4305,Ijuí,43,Rio Grande do Sul
+4306,Passo Fundo,43,Rio Grande do Sul
+4307,Caxias do Sul,43,Rio Grande do Sul
+4308,Santa Cruz do Sul - Lajeado,43,Rio Grande do Sul
+5001,Campo Grande,50,Mato Grosso do Sul
+5002,Dourados,50,Mato Grosso do Sul
+5003,Corumbá,50,Mato Grosso do Sul
+5101,Cuiabá,51,Mato Grosso
+5102,Cáceres,51,Mato Grosso
+5103,Sinop,51,Mato Grosso
+5104,Barra do Garças,51,Mato Grosso
+5105,Rondonópolis,51,Mato Grosso
+5201,Goiânia,52,Goiás
+5202,Itumbiara,52,Goiás
+5203,Rio Verde,52,Goiás
+5204,São Luís de Montes Belos - Iporá,52,Goiás
+5205,Porangatu - Uruaçu,52,Goiás
+5206,Luziânia - Águas Lindas de Goiás,52,Goiás
+5301,Distrito Federal,53,Distrito Federal
