@@ -144,7 +144,7 @@ opcoes_estados = estados.sort_values(by = 'estado')[['estado', 'sigla']].rename(
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets) 
 
-#server = app.server #Disable it when in test / development mode. Enable it to Production mode
+server = app.server #Disable it when in test / development mode. Enable it to Production mode
 app.layout = html.Div([
         #dcc.Store(id="store_data"), #later understand why this is useful
         
@@ -571,6 +571,6 @@ def update_figure(info, geo_level, filtro_estados):
     return figure_map, table_data, columns, figure_line
 
 if __name__ == '__main__':
-    app.run_server(debug = False)
+    app.run_server(debug = True)
 
 
