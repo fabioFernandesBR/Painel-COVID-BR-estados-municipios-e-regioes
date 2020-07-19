@@ -48,7 +48,7 @@ info_pop.drop(axis = 1, labels = ['COD. UF', 'COD. MUNIC'], inplace = True)
 info_rg = dicionario_municipios.merge(info_pop, on = 'CD_GEOCODI') #including the population inside the dataframe
 pop_rgi = info_rg.groupby('cod_rgi').sum()['pop']
 pop_rgintermed = info_rg.groupby('cod_rgint').sum()['pop']
-pop_uf = info_rg.groupby('sigla_estado').sum()['pop']
+pop_uf = info_rg.groupby('sigla').sum()['pop']
 
 
 # Complete info for all dates
@@ -86,8 +86,8 @@ for city in data_covidbr['city_ibge_code'].unique():
     tdf = pd.concat([tdf, provisory_df_filled.reset_index()])
     
 tdf = tdf.merge(info_rg, left_on= 'city_ibge_code', right_on = 'CD_GEOCODI', how = 'left')
-tdf['rgi'] = tdf['nome_rgi'] + ' / ' + tdf['sigla_estado']
-tdf['rgintermed'] = tdf['nome_rgint'] + ' / ' + tdf['sigla_estado']
+tdf['rgi'] = tdf['nome_rgi'] + ' / ' + tdf['sigla']
+tdf['rgintermed'] = tdf['nome_rgint'] + ' / ' + tdf['sigla']
 
 tdf.rename(inplace = True, columns = {'date': 'data', 
                                       'confirmed': 'total_casos',
@@ -97,10 +97,10 @@ tdf.rename(inplace = True, columns = {'date': 'data',
 tdf.drop(labels = ['CD_GEOCODI'], axis = 1, inplace = True)
 
 ### Creating the dataframe related to states
-tdf_estados = tdf.groupby(by = ['data', 'sigla_estado'], as_index=False).sum()
+tdf_estados = tdf.groupby(by = ['data', 'sigla'], as_index=False).sum()
 tdf_estados.drop(labels = ['pop'], axis = 1, inplace = True)
-tdf_estados = tdf_estados.merge(pop_uf, left_on = 'sigla_estado', right_index = True, how = 'left')
-tdf_estados = tdf_estados.merge(dicionario_uf, left_on = 'sigla_estado', right_on = 'sigla_estado', how = 'left')
+tdf_estados = tdf_estados.merge(pop_uf, left_on = 'sigla', right_index = True, how = 'left')
+tdf_estados = tdf_estados.merge(dicionario_uf, left_on = 'sigla', right_on = 'sigla_estado', how = 'left')
 
 
 ### Creating the dataframe related to rgintermed

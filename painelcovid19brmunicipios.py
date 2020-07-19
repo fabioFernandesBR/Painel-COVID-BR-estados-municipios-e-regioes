@@ -14,10 +14,10 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import pandas as pd
 import json
-import dash_daq as daq
 import dash_table
 from dash_table.Format import Format, Group, Scheme, Symbol
 import datetime as dt
+import numpy as np
 
 '''
 Source of Population Info: https://www.ibge.gov.br/estatisticas/sociais/populacao/9103-estimativas-de-populacao.html?edicao=25272&t=downloads
@@ -31,6 +31,7 @@ Source of COVID data: https://brasil.io/dataset/covid19/caso?format=csv
 ## Reading last update info
 readfile = open('last_update.txt', 'r')
 last_update = readfile.readlines()
+last_update_message = 'Dados atualizados em: ' + last_update[0]
 readfile.close()
 
 
@@ -51,6 +52,10 @@ with open('Maps/brasil_4.json', encoding='utf-8') as geofile4:
 
 
 ## Reading info from the hard drive previously downloaded and manipulated file
+    
+estados = pd.read_csv('Tables/uf.csv', encoding = 'latin1')    
+   
+
 
 tdf = pd.read_csv('Tables/tdf.csv',
                   parse_dates = ['data'], 
@@ -109,6 +114,12 @@ df_estados_hoje = tdf_estados[tdf_estados['data'] == tdf_estados['data'].max()].
 df_rgint_hoje = tdf_rgint[tdf_rgint['data'] == tdf_rgint['data'].max()].copy()
 df_rgi_hoje = tdf_rgi[tdf_rgi['data'] == tdf_rgi['data'].max()].copy()
 
+##### including a column to make identification easier
+df_hoje['name'] = df_hoje['nome_mun'] + ' / ' + df_hoje['sigla']
+df_rgi_hoje['name'] = df_rgi_hoje['nome_rgi'] + ' / ' + df_rgi_hoje['sigla']
+df_rgint_hoje['name'] = df_rgint_hoje['nome_rgint'] + ' / ' + df_rgint_hoje['sigla']
+df_estados_hoje['name'] = df_estados_hoje['estado']
+
 ### Summing up total numbers
 total_cases = df_estados_hoje['total_casos'].sum()
 total_deaths = df_estados_hoje['total_obitos'].sum()
@@ -117,77 +128,92 @@ total_deaths = df_estados_hoje['total_obitos'].sum()
 
 
 ### Creating the locations for each level of geo organization
-locations_states = df_estados_hoje['sigla_estado']
+locations_states = df_estados_hoje['sigla']
 locations_rgintermed = df_rgint_hoje['cod_rgint']
 locations_rgi =df_rgi_hoje['cod_rgi']
 locations_mun = df_hoje['codigo_ibge']
+
+
+### Creating options for the filters
+opcoes_estados = estados.sort_values(by = 'estado')[['estado', 'sigla']].rename(columns = {'estado': 'label', 'sigla': 'value'}).to_dict(orient = 'records')
+
+
+
 
 #Creating the core of the dashboard
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets) 
 
-server = app.server #Disable it when in test / development mode. Enable it to Production mode
+#server = app.server #Disable it when in test / development mode. Enable it to Production mode
 app.layout = html.Div([
         #dcc.Store(id="store_data"), #later understand why this is useful
         
         html.Div(html.H1('Painel COVID-19 nas localidades brasileiras')),
         
-        html.Div(html.H6(last_update)),
+        html.Div(html.Label(last_update_message)),
         
         html.Div([
                 html.Div(
-                    [
-                        daq.LEDDisplay(id='cases-LED-display',
-                                label= 'Total de casos confirmados no Brasil',
-                                value=total_cases, 
-                                color = 'black')
-                    ],
-                ),
+                    [html.Label('Total de casos confirmados no Brasil'),
+                     html.H1(total_cases)
+                    ]),
             
                 html.Div(
-                    [
-                        daq.LEDDisplay(id='deaths-LED-display',
-                                label= 'Total de óbitos confirmados no Brasil',
-                                value=total_deaths, 
-                                color = 'black')
-                    ]
-                ),
-            ],
+                    [html.Label('Total de óbitos confirmados no Brasil'),
+                     html.H1(total_deaths)
+                    ]),
+                    ],
             id="header",
             className="row flex-display",
             style={"margin-bottom": "25px"}), #closing Div with overall scores
         
                 
-        html.Div([html.Div('Selecione o nível de organização do território:'),
-                dcc.Dropdown(id = 'dropdown_geo_level', 
-                               options = [
-                                       {'label': 'Estados', 'value': 'states'},
-                                       {'label': 'Regiões Geográficas Intermediárias', 'value': 'rgintermed'}, 
-                                       {'label': 'Regiões Geográficas Imediatas', 'value': 'rgi'}, 
-                                       {'label': 'Municípios', 'value': 'cities'}
-                                       ], 
-                               value = 'states', 
-                               multi = False)]),
-        
-        
-        html.Div([html.Div('Selectione o tipo de informação:'),
-                dcc.Dropdown(id = 'dropdown_info', 
-                               options = [
-                                       {'label': 'A - Total de casos', 'value': 'total_casos'},
-                                       {'label': 'B - Total de óbitos', 'value': 'total_obitos'},
-                                       {'label': 'C - Novos casos', 'value': 'novos_casos'},
-                                       {'label': 'D - Novos óbitos', 'value': 'novos_obitos'},
-                                       {'label': 'E - Média móvel dos novos casos - 7 dias', 'value': 'mm_7dias_novos_casos'},
-                                       {'label': 'F - Média móvel dos novos óbitos - 7 dias', 'value': 'mm_7dias_novos_obitos'},
-                                       {'label': 'G - Total de casos por 100.000 habitantes', 'value': 'total_casos%'},
-                                       {'label': 'H - Total de óbitos por 100.000 habitantes', 'value': 'total_obitos%'},
-                                       {'label': 'I - Novos casos por 100.000 habitantes', 'value': 'novos_casos%'},
-                                       {'label': 'J - Novos óbitos por 100.000 habitantes', 'value': 'novos_obitos%'},
-                                       {'label': 'K - Média móvel dos novos casos - 7 dias - por 100.000 habitantes', 'value': 'mm_7dias_novos_casos%'},
-                                       {'label': 'L - Média móvel dos novos óbitos - 7 dias - por 100.000 habitantes', 'value': 'mm_7dias_novos_obitos%'}], 
-                               value = 'total_casos', 
-                               multi = False)]), ### closing Div-Div-Dropdown
-        
+        html.Div([
+            html.Div(html.H3('Configure o mapa:')),
+            html.Div([html.Div('Nível de organização do território:'),
+                    dcc.Dropdown(id = 'dropdown_geo_level', 
+                                   options = [
+                                           {'label': 'Estados', 'value': 'states'},
+                                           {'label': 'Regiões Geográficas Intermediárias', 'value': 'rgintermed'}, 
+                                           {'label': 'Regiões Geográficas Imediatas', 'value': 'rgi'}, 
+                                           {'label': 'Municípios', 'value': 'cities'}
+                                           ], 
+                                   value = 'states', 
+                                   multi = False)]),
+            
+            
+            html.Div([html.Div('Variável de interesse:'),
+                    dcc.Dropdown(id = 'dropdown_info', 
+                                   options = [
+                                           {'label': 'A - Total de casos', 'value': 'total_casos'},
+                                           {'label': 'B - Total de óbitos', 'value': 'total_obitos'},
+                                           {'label': 'C - Novos casos', 'value': 'novos_casos'},
+                                           {'label': 'D - Novos óbitos', 'value': 'novos_obitos'},
+                                           {'label': 'E - Média móvel dos novos casos - 7 dias', 'value': 'mm_7dias_novos_casos'},
+                                           {'label': 'F - Média móvel dos novos óbitos - 7 dias', 'value': 'mm_7dias_novos_obitos'},
+                                           {'label': 'G - Total de casos por 100.000 habitantes', 'value': 'total_casos%'},
+                                           {'label': 'H - Total de óbitos por 100.000 habitantes', 'value': 'total_obitos%'},
+                                           {'label': 'I - Novos casos por 100.000 habitantes', 'value': 'novos_casos%'},
+                                           {'label': 'J - Novos óbitos por 100.000 habitantes', 'value': 'novos_obitos%'},
+                                           {'label': 'K - Média móvel dos novos casos - 7 dias - por 100.000 habitantes', 'value': 'mm_7dias_novos_casos%'},
+                                           {'label': 'L - Média móvel dos novos óbitos - 7 dias - por 100.000 habitantes', 'value': 'mm_7dias_novos_obitos%'}], 
+                                   value = 'total_casos', 
+                                   multi = False)]), ### closing Div-Div-Dropdown
+           
+            html.Div(html.H3('E aplique filtros:')),
+            html.Div([html.Div('Estado:'),
+                    dcc.Dropdown(id = 'dropdown_state', 
+                                   options = opcoes_estados, 
+                                   value = 'all',
+                                   searchable = True,
+                                   clearable = True,
+                                   placeholder = 'Todos',
+                                   multi = True)]),
+                
+            html.Div(html.Label(id = 'estados_selecionados_id')),
+                
+                
+        ]),  ### closing configuring and filtering section.
         
         html.Div(dcc.Graph(id = 'main_map'), #closing dcc.Graph
     #style={'width':1000, 'height':800, 'border':'2px black'}
@@ -215,19 +241,75 @@ app.layout = html.Div([
         
         html.Div(dash_table.DataTable(id='table', 
                                       export_format = 'csv',
-                                      style_cell={'textAlign': 'right'},
+                                      style_cell={'textAlign': 'left'},
                                       style_data_conditional=[
-                                              {
+                                                {
                                                 'if': {'row_index': 'odd'},
                                                 'backgroundColor': 'rgb(248, 248, 248)'
                                                 }, 
+                                                {
+                                                    'if': {'column_id': 'pop'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'total_casos'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'total_obitos'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'novos_casos'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'novos_obitos'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'mm_7dias_novos_casos'},
+                                                    'textAlign': 'right'
+                                                },
+                                                 {
+                                                    'if': {'column_id': 'mm_7dias_novos_obitos'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'total_casos%'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'total_obitos%'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'novos_casos%'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'novos_obitos%'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'mm_7dias_novos_casos%'},
+                                                    'textAlign': 'right'
+                                                },
+                                                {
+                                                    'if': {'column_id': 'mm_7dias_novos_obitos%'},
+                                                    'textAlign': 'right'
+                                                }                                                                                                                                                      
+                                              ], 
+                                      style_header= [
                                               {
-                                                    'if': {'column_id': 'Localidade'},
-                                                    'textAlign': 'left'
-                                                }], 
-                                      style_header={
                                               'backgroundColor': 'rgb(230, 230, 230)',
-                                              'fontWeight': 'bold'}
+                                              'fontWeight': 'bold'
+                                              },
+                                              {
+                                               'if': {'column_id': 'pop'},
+                                               'textAlign': 'right'
+                                                }
+                                              ]
                                       )),
         html.Div(dcc.Markdown(
                             '''
@@ -252,57 +334,87 @@ app.layout = html.Div([
 # Callbacks - here is where the magic happens
 @app.callback([Output('main_map', 'figure'),
                Output('table', 'data'),
-               Output('table', 'columns')],
+               Output('table', 'columns'),
+               Output('main_lineplot', 'figure')],
               [Input('dropdown_info', 'value'),
-               Input('dropdown_geo_level', 'value')])
-def update_figure(info, geo_level):
+               Input('dropdown_geo_level', 'value'),
+               Input('dropdown_state', 'value')])
+def update_figure(info, geo_level, filtro_estados):
+    
+    
+    if filtro_estados == 'all':
+        ufs = estados['sigla']
+    elif filtro_estados == []:
+        ufs = estados['sigla']
+    else:
+        ufs = filtro_estados
+   
+    
     ### according to the geo_level, we'll choose the right DataFrame
     if geo_level == 'rgintermed':
         df = df_rgint_hoje
         locations = locations_rgintermed
         geojson = jdataBra_rgintermed
         featureidkey='properties.CD_RGINT'
-        text = df['nome_rgint'] + ' / ' + df['sigla'] 
+        key = 'cod_rgint'
+        time_df = tdf_rgint
+        place_var = ['cod_rgint', 'nome_rgint', 'sigla']
+        #text = df['nome_rgint'] + ' / ' + df['sigla'] 
     elif geo_level == 'rgi':
         df = df_rgi_hoje
         locations = locations_rgi
         geojson = jdataBra_rgimed
         featureidkey = featureidkey='properties.CD_RGI'
-        text = df['nome_rgi'] + ' / ' + df['sigla']
+        key = 'cod_rgi'
+        time_df = tdf_rgi
+        place_var = ['cod_rgi', 'nome_rgi', 'sigla']
+        #text = df['nome_rgi'] + ' / ' + df['sigla']
     elif geo_level == 'cities':
         df = df_hoje
         locations = locations_mun
         geojson = jdataBra_municipios
         featureidkey = featureidkey='properties.CD_MUN'
-        text = df['nome_mun'] + ' / ' + df['sigla_estado']
+        key = 'codigo_ibge'
+        time_df = tdf
+        place_var = ['codigo_ibge', 'nome_mun', 'sigla']
+        #text = df['nome_mun'] + ' / ' + df['sigla_estado']
     else:  #else select states
         df = df_estados_hoje
         locations = locations_states
         geojson = jdataBra_states
         featureidkey = 'properties.SIGLA_UF'
-        text = df['estado']
-        
-     
-    figure = {'data': [go.Choroplethmapbox(geojson = geojson,
+        key = 'sigla'
+        time_df = tdf_estados
+        place_var = ['sigla_estado', 'estado']
+        #text = df['estado']
+    
+    ## Applying filters
+    filtered_df = df[df['sigla'].isin(ufs)]
+    
+    ## arranging the dataframe to be shown
+    blank_df = pd.DataFrame(index = locations)
+    df_to_show = blank_df.merge(filtered_df, left_index = True, right_on = key, how = 'left').fillna(0)
+    
+    
+    ## Creating the map figure 
+    figure_map = {'data': [go.Choroplethmapbox(geojson = geojson,
                                            locations = locations,
-                                           z = df[info],
+                                           z = df_to_show[info],
                                            featureidkey = featureidkey,
-                                           colorscale = 'RdPu',
-                                           text = text,
-                                           #hovertemplate = '<b>%{customdata[0]}</b><br>z2:%{customdata[1]:.3f} <br>z3: %{customdata[2]:.3f} ',
-                                           customdata=df)],
-                'layout': go.Layout(
-                                           title = 'Mapa da COVID-19 no Brasil',
-                                           hovermode = 'closest',
-                                           width = 1500,
-                                           height = 1000,
-                                           mapbox={'zoom': 3,
-                                                   'style': 'carto-positron',
-                                                   'center': {"lat": -15, "lon": -60}})
+                                           text = df_to_show['name'],
+                                           colorscale = 'RdPu'
+                                           )],
+                  'layout': go.Layout(title = 'Mapa da COVID-19 no Brasil',
+                                      hovermode = 'closest',
+                                      width = 1500,
+                                      height = 1000,
+                                      mapbox={'zoom': 3,
+                                              'style': 'carto-positron',
+                                              'center': {"lat": -15, "lon": -60}})
                                    } #closing figure
                 
-        
-    data=df.sort_values(by = info, ascending = False).to_dict('records')
+     
+    table_data=filtered_df.sort_values(by = info, ascending = False).to_dict('records')
     
     formatlocale_ptBR_int = Format(
             scheme = Scheme.fixed,
@@ -327,16 +439,16 @@ def update_figure(info, geo_level):
     ### Organizing the format of the table
     if geo_level == 'states':
         columns=[{'id': 'estado', 'name': 'Estado', 'type': 'text'},
-                 {'id': 'sigla_estado', 'name': 'Sigla', 'type': 'text'},
+                 {'id': 'sigla', 'name': 'Sigla', 'type': 'text'},
                  {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
@@ -349,12 +461,12 @@ def update_figure(info, geo_level):
                  {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
@@ -368,12 +480,12 @@ def update_figure(info, geo_level):
                  {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
@@ -384,16 +496,16 @@ def update_figure(info, geo_level):
         columns=[{'id': 'nome_mun', 'name': 'Município', 'type': 'text'},
                  {'id': 'nome_rgi', 'name': 'Região Imediata', 'type': 'text'},
                  {'id': 'nome_rgint', 'name': 'Região Intermediária', 'type': 'text'},
-                 {'id': 'sigla_estado', 'name': 'Estado', 'type': 'text'},
+                 {'id': 'sigla', 'name': 'Estado', 'type': 'text'},
                  {'id': 'pop', 'name': 'População', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_casos', 'name': 'A', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'total_obitos', 'name': 'B', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'novos_casos', 'name': 'C', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'novos_obitos', 'name': 'D', 'type': 'numeric', 'format': formatlocale_ptBR_int},
                  {'id': 'mm_7dias_novos_casos', 'name': 'E', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_obitos', 'name': 'F', 'type': 'numeric', 'format': formatlocale_ptBR_float},
-                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_int},
-                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_int},
+                 {'id': 'total_casos%', 'name': 'G', 'type': 'numeric', 'format': formatlocale_ptBR_float},
+                 {'id': 'total_obitos%', 'name': 'H', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_casos%', 'name': 'I', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'novos_obitos%', 'name': 'J', 'type': 'numeric', 'format': formatlocale_ptBR_float},
                  {'id': 'mm_7dias_novos_casos%', 'name': 'K', 'type': 'numeric', 'format': formatlocale_ptBR_float},
@@ -401,41 +513,9 @@ def update_figure(info, geo_level):
                  
                  ]
       
-                                   
-    return figure, data, columns
-
-
-
-
-
-@app.callback(Output('main_lineplot', 'figure'),
-              [Input('dropdown_info', 'value'),
-               Input('dropdown_geo_level', 'value')])
-def update_lineplot(info, geo_level):
-    ### according to the geo_level, we'll choose the right DataFrame
-    if geo_level == 'rgintermed':
-        df = df_rgint_hoje
-        time_df = tdf_rgint
-        place_var = ['cod_rgint', 'nome_rgint', 'sigla']
     
-    elif geo_level == 'rgi':
-        df = df_rgi_hoje
-        time_df = tdf_rgi
-        place_var = ['cod_rgi', 'nome_rgi', 'sigla']
-    
-    elif geo_level == 'cities':
-        df = df_hoje
-        time_df = tdf
-        place_var = ['codigo_ibge', 'nome_mun', 'sigla_estado']
-    
-    else:  #else select states
-        df = df_estados_hoje
-        time_df = tdf_estados
-        place_var = ['sigla_estado', 'estado']
-        
-     
     ## creating the line plot
-    top_places = df.sort_values(by = info, ascending = False).head(5)[place_var]
+    top_places = filtered_df.sort_values(by = info, ascending = False).head(5)[place_var]
     
     if geo_level == 'states':
         top_places['texto'] = top_places['estado']
@@ -455,10 +535,10 @@ def update_lineplot(info, geo_level):
         data.append(trace)
     
     
-    figure = go.Figure(data=data,
+    figure_line = go.Figure(data=data,
                        layout=go.Layout(title = 'Curva de evolução da COVID nas localidades selecionadas'))
 
-    figure = figure.update_xaxes(rangeslider_visible=True, 
+    figure_line = figure_line.update_xaxes(rangeslider_visible=True, 
                                  range = ['2020-02-25', time_df['data'].max()],
                                  rangeselector=dict(buttons=list([
                                          dict(count=7, label="7d", step="day", stepmode="backward"),
@@ -470,8 +550,8 @@ def update_lineplot(info, geo_level):
      
 
 
-    figure.update_layout(
-            autosize=False,
+    figure_line.update_layout(
+            autosize=True,
             #width=1500,
             height=800,
             margin=dict(
@@ -481,11 +561,16 @@ def update_lineplot(info, geo_level):
                 t=100,
                 pad=4),
                     paper_bgcolor="LightSteelBlue")
-                              
-    return figure 
     
     
+    
+    
+    
+    
+                               
+    return figure_map, table_data, columns, figure_line
+
 if __name__ == '__main__':
-    app.run_server(debug = True)
+    app.run_server(debug = False)
 
 
