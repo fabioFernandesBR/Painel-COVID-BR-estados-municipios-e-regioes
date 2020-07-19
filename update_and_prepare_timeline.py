@@ -24,7 +24,10 @@ data_covidbr = pd.read_csv(urlopen(req),
 
 data_covidbr = data_covidbr[(data_covidbr['place_type'] == 'city')]
 data_covidbr.dropna(inplace = True)
-data_covidbr.drop(labels = ['order_for_place', 'estimated_population_2019', 'confirmed_per_100k_inhabitants', 'death_rate', 'place_type', 'state', 'city', 'is_last'], axis = 1, inplace = True)
+data_covidbr.drop(labels = ['order_for_place', 'estimated_population_2019', 'confirmed_per_100k_inhabitants', 'death_rate', 'place_type', 'state', 'city'], axis = 1, inplace = True)
+last_update = data_covidbr[data_covidbr['is_last']][['city_ibge_code', 'date']].copy()   #saving info of last_update of each city
+last_update.rename(columns = {'city_ibge_code': 'codigo_ibge', 'date': 'data_atualizacao'}, inplace = True)
+data_covidbr.drop(labels = ['is_last'], axis = 1, inplace = True)
 
 ### Registering the updating time
 now_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -60,9 +63,9 @@ time_index = pd.date_range(initial_date, last_date)
 
 tdf = pd.DataFrame()
 
-
+print('gerando tdf...')
 for city in data_covidbr['city_ibge_code'].unique():
-    print(city)
+    #print(city)
     provisory_df_city = data_covidbr[data_covidbr['city_ibge_code'] == city].copy()
     provisory_df_filled = pd.DataFrame(index = time_index).merge(right = provisory_df_city,
                                       left_index= True,
@@ -84,7 +87,8 @@ for city in data_covidbr['city_ibge_code'].unique():
     
     
     tdf = pd.concat([tdf, provisory_df_filled.reset_index()])
-    
+
+  
 tdf = tdf.merge(info_rg, left_on= 'city_ibge_code', right_on = 'CD_GEOCODI', how = 'left')
 tdf['rgi'] = tdf['nome_rgi'] + ' / ' + tdf['sigla']
 tdf['rgintermed'] = tdf['nome_rgint'] + ' / ' + tdf['sigla']
@@ -95,12 +99,27 @@ tdf.rename(inplace = True, columns = {'date': 'data',
                                       'city_ibge_code': 'codigo_ibge'
                                       })
 tdf.drop(labels = ['CD_GEOCODI'], axis = 1, inplace = True)
+print('tdf gerada!')
+print('incluindo info bool de data de atualização no tdf...') 
+
+tdf['atualizado'] = False
+for i, j in last_update.iterrows():
+    #city = j['codigo_ibge']
+    #date = j['data_atualizacao']
+    ind = (tdf[(tdf['data'] == j['data_atualizacao']) & (tdf['codigo_ibge'] == j['codigo_ibge'])]['atualizado']).index
+    tdf.iloc[ind, 19] = True
+    #print(city, date, str(ind))
+    
+print('tdf completo!')
+print('criar demais tdf...')
+
+
 
 ### Creating the dataframe related to states
 tdf_estados = tdf.groupby(by = ['data', 'sigla'], as_index=False).sum()
 tdf_estados.drop(labels = ['pop'], axis = 1, inplace = True)
 tdf_estados = tdf_estados.merge(pop_uf, left_on = 'sigla', right_index = True, how = 'left')
-tdf_estados = tdf_estados.merge(dicionario_uf, left_on = 'sigla', right_on = 'sigla_estado', how = 'left')
+tdf_estados = tdf_estados.merge(dicionario_uf, left_on = 'sigla', right_on = 'sigla', how = 'left')
 
 
 ### Creating the dataframe related to rgintermed
@@ -114,6 +133,9 @@ tdf_rgi = tdf.groupby(by = ['data', 'cod_rgi'], as_index=False).sum()
 tdf_rgi.drop(labels = ['pop'], axis = 1, inplace = True)
 tdf_rgi = tdf_rgi.merge(pop_rgi, left_on = 'cod_rgi', right_index = True, how = 'left')
 tdf_rgi = tdf_rgi.merge(dicionario_rgi, on = 'cod_rgi', how = 'left')
+
+print('tdfs feitas!')
+print('calcular taxas...')
 
 ## calculating rates
 tdf['total_casos%'] = 10**5 * tdf['total_casos'] / tdf['pop']
@@ -144,6 +166,43 @@ tdf_estados['novos_obitos%'] = 10**5 * tdf_estados['novos_obitos'] / tdf_estados
 tdf_estados['mm_7dias_novos_casos%'] = 10**5 * tdf_estados['mm_7dias_novos_casos'] / tdf_estados['pop']
 tdf_estados['mm_7dias_novos_obitos%'] = 10**5 * tdf_estados['mm_7dias_novos_obitos'] / tdf_estados['pop']
 
+print('taxas calculadas!')
+print('calcular taxas de crescimento - estados...')
+### Calculating growth rate
+for state in tdf_estados['sigla'].unique():
+    tdf_estados.loc[tdf_estados['sigla'] == state, 'var_casos_7dias'] = tdf_estados.loc[tdf_estados['sigla'] == state, 'mm_7dias_novos_casos'].pct_change(periods = 7)
+    tdf_estados.loc[tdf_estados['sigla'] == state, 'var_obitos_7dias'] = tdf_estados.loc[tdf_estados['sigla'] == state, 'mm_7dias_novos_obitos'].pct_change(periods = 7)
+print('taxas de crescimento - estados calculadas!')
+
+
+
+print('calcular taxas de crescimento - rgint...')
+for rgintermed in tdf_rgint['cod_rgint'].unique():
+    tdf_rgint.loc[tdf_rgint['cod_rgint'] == rgintermed, 'var_casos_7dias'] = tdf_rgint.loc[tdf_rgint['cod_rgint'] == rgintermed, 'mm_7dias_novos_casos'].pct_change(periods = 7)
+    tdf_rgint.loc[tdf_rgint['cod_rgint'] == rgintermed, 'var_obitos_7dias'] = tdf_rgint.loc[tdf_rgint['cod_rgint'] == rgintermed, 'mm_7dias_novos_obitos'].pct_change(periods = 7)
+print('taxas de crescimento - rgint calculadas!')
+
+
+
+print('calcular taxas de crescimento - rgi...')
+for rgimed in tdf_rgi['cod_rgi'].unique():
+    tdf_rgi.loc[tdf_rgi['cod_rgi'] == rgimed, 'var_casos_7dias'] = tdf_rgi.loc[tdf_rgi['cod_rgi'] == rgimed, 'mm_7dias_novos_casos'].pct_change(periods = 7)
+    tdf_rgi.loc[tdf_rgi['cod_rgi'] == rgimed, 'var_obitos_7dias'] = tdf_rgi.loc[tdf_rgi['cod_rgi'] == rgimed, 'mm_7dias_novos_obitos'].pct_change(periods = 7)
+print('taxas de crescimento - rgi calculadas!')
+
+
+
+print('calcular taxas de crescimento - cidades...')
+for city in tdf['codigo_ibge'].unique():
+    tdf.loc[tdf['codigo_ibge'] == city, 'var_casos_7dias'] = tdf.loc[tdf['codigo_ibge'] == city, 'mm_7dias_novos_casos'].pct_change(periods = 7)
+    tdf.loc[tdf['codigo_ibge'] == city, 'var_obitos_7dias'] = tdf.loc[tdf['codigo_ibge'] == city, 'mm_7dias_novos_obitos'].pct_change(periods = 7)
+    print(city)
+print('tdfs completas!')
+
+
+
+
+print('salvando arquivos...')
 
 ## Saving files
 tdf.to_csv('Tables/tdf.csv', encoding = 'latin1', compression = 'gzip')
@@ -152,3 +211,5 @@ tdf_rgint.to_csv('Tables/tdf_rgint.csv', encoding = 'latin1', compression = 'gzi
 tdf_estados.to_csv('Tables/tdf_estados.csv', encoding = 'latin1', compression = 'gzip')
 with open('last_update.txt', 'w') as f:
         f.write(now_string)
+    
+print('processo completo!')

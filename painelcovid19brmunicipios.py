@@ -108,11 +108,19 @@ tdf_estados = tdf_estados.drop(axis = 1, labels = ['Unnamed: 0'])
 
 
 ### Keeping only the updated info
+df_hoje = tdf[tdf['atualizado']].copy()
 
-df_hoje = tdf[tdf['data'] == tdf['data'].max()].copy()
+
 df_estados_hoje = tdf_estados[tdf_estados['data'] == tdf_estados['data'].max()].copy()
 df_rgint_hoje = tdf_rgint[tdf_rgint['data'] == tdf_rgint['data'].max()].copy()
 df_rgi_hoje = tdf_rgi[tdf_rgi['data'] == tdf_rgi['data'].max()].copy()
+
+'''
+NOTA:
+Os dados de município carregam apenas as informações mais atuais de cada município.
+Os dados agrupados de regiões e estados consideram a soma dos dados mais atuais de cada município que os compõem.
+Isso significa que possivelmente os dados dessas regiões estarão um pouco desatualizadas.
+'''
 
 ##### including a column to make identification easier
 df_hoje['name'] = df_hoje['nome_mun'] + ' / ' + df_hoje['sigla']
@@ -144,7 +152,7 @@ opcoes_estados = estados.sort_values(by = 'estado')[['estado', 'sigla']].rename(
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets) 
 
-server = app.server #Disable it when in test / development mode. Enable it to Production mode
+#server = app.server #Disable it when in test / development mode. Enable it to Production mode
 app.layout = html.Div([
         #dcc.Store(id="store_data"), #later understand why this is useful
         
@@ -201,17 +209,45 @@ app.layout = html.Div([
                                    multi = False)]), ### closing Div-Div-Dropdown
            
             html.Div(html.H3('E aplique filtros:')),
-            html.Div([html.Div('Estado:'),
+            html.Div([
+                    html.Div('Estado:'),
                     dcc.Dropdown(id = 'dropdown_state', 
                                    options = opcoes_estados, 
                                    value = 'all',
                                    searchable = True,
                                    clearable = True,
                                    placeholder = 'Todos',
-                                   multi = True)]),
-                
-            html.Div(html.Label(id = 'estados_selecionados_id')),
-                
+                                   multi = True),
+                    
+                    html.Div('Região Geográfica Intermediária:'),
+                    dcc.Dropdown(id = 'dropdown_rgint', 
+                                   value = 'all',
+                                   searchable = True,
+                                   clearable = True,
+                                   placeholder = 'Todas',
+                                   multi = True),
+                                 
+                    html.Div('Região Geográfica Imediata:'),
+                    dcc.Dropdown(id = 'dropdown_rgi', 
+                                   value = 'all',
+                                   searchable = True,
+                                   clearable = True,
+                                   placeholder = 'Todas',
+                                   multi = True),
+                                 
+                    html.Div('Município:'),
+                    dcc.Dropdown(id = 'dropdown_city', 
+                                   value = 'all',
+                                   searchable = True,
+                                   clearable = True,
+                                   placeholder = 'Todos',
+                                   multi = True)
+                                 
+                                 
+                                 
+                                 
+                                 ]),
+             
                 
         ]),  ### closing configuring and filtering section.
         
@@ -358,7 +394,7 @@ def update_figure(info, geo_level, filtro_estados):
         featureidkey='properties.CD_RGINT'
         key = 'cod_rgint'
         time_df = tdf_rgint
-        place_var = ['cod_rgint', 'nome_rgint', 'sigla']
+        #place_var = ['cod_rgint', 'nome_rgint', 'sigla']
         #text = df['nome_rgint'] + ' / ' + df['sigla'] 
     elif geo_level == 'rgi':
         df = df_rgi_hoje
@@ -367,7 +403,7 @@ def update_figure(info, geo_level, filtro_estados):
         featureidkey = featureidkey='properties.CD_RGI'
         key = 'cod_rgi'
         time_df = tdf_rgi
-        place_var = ['cod_rgi', 'nome_rgi', 'sigla']
+        #place_var = ['cod_rgi', 'nome_rgi', 'sigla']
         #text = df['nome_rgi'] + ' / ' + df['sigla']
     elif geo_level == 'cities':
         df = df_hoje
@@ -376,7 +412,7 @@ def update_figure(info, geo_level, filtro_estados):
         featureidkey = featureidkey='properties.CD_MUN'
         key = 'codigo_ibge'
         time_df = tdf
-        place_var = ['codigo_ibge', 'nome_mun', 'sigla']
+        #place_var = ['codigo_ibge', 'nome_mun', 'sigla']
         #text = df['nome_mun'] + ' / ' + df['sigla_estado']
     else:  #else select states
         df = df_estados_hoje
@@ -385,7 +421,7 @@ def update_figure(info, geo_level, filtro_estados):
         featureidkey = 'properties.SIGLA_UF'
         key = 'sigla'
         time_df = tdf_estados
-        place_var = ['sigla_estado', 'estado']
+        #place_var = ['sigla_estado', 'estado']
         #text = df['estado']
     
     ## Applying filters
@@ -515,23 +551,13 @@ def update_figure(info, geo_level, filtro_estados):
       
     
     ## creating the line plot
-    top_places = filtered_df.sort_values(by = info, ascending = False).head(5)[place_var]
-    
-    if geo_level == 'states':
-        top_places['texto'] = top_places['estado']
-        top_places['local'] = top_places['sigla_estado']
-    else:
-        top_places['texto'] = top_places.iloc[:,1] + ' / ' + top_places.iloc[:,2]
-        top_places['local'] = top_places.iloc[:,0]
-    
-    
+    top_places = filtered_df.sort_values(by = info, ascending = False).head(5)
     data = []
-    for place in top_places.iloc[:,0]:
-        texto = top_places[top_places['local'] == place]['texto'].to_string(index = False)
-        trace = go.Scatter(x = time_df[time_df[place_var[0]] == place]['data'],
-                           y = time_df[time_df[place_var[0]] == place][info],
+    for i, place in top_places.iterrows():
+        trace = go.Scatter(x = time_df[time_df[key] == place[key]]['data'],
+                           y = time_df[time_df[key] == place[key]][info],
                            mode = 'lines+markers',
-                           name = texto)
+                           name = place['name'])
         data.append(trace)
     
     
@@ -571,6 +597,6 @@ def update_figure(info, geo_level, filtro_estados):
     return figure_map, table_data, columns, figure_line
 
 if __name__ == '__main__':
-    app.run_server(debug = True)
+    app.run_server(debug = False)
 
 
