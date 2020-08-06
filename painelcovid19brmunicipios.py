@@ -495,8 +495,12 @@ def update_figure(info, geo_level, filtro_estados, filtro_rgint, filtro_rgi, fil
     
     if info in ['var_casos_7dias', 'var_obitos_7dias']:
         color_sequence = 'Picnic'
+        zauto = True
+        
     else:
         color_sequence = 'RdPu'
+        zauto = False
+        
     
     
     ## Creating the map figure 
@@ -505,6 +509,8 @@ def update_figure(info, geo_level, filtro_estados, filtro_rgint, filtro_rgi, fil
                                            z = df_to_show[info],
                                            featureidkey = featureidkey,
                                            text = df_to_show['name'],
+                                           zauto = zauto,
+                                           zmid = 0,
                                            colorscale = color_sequence 
                                            )],
                   'layout': go.Layout(title = 'Mapa da COVID-19 no Brasil',
